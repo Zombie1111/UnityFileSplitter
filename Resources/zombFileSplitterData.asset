@@ -13,3 +13,4 @@ MonoBehaviour:
   m_Name: zombFileSplitterData
   m_EditorClassIdentifier: 
   splittedFiles: []
+  gitIgnorePath: Assets/UnityFileSplitter/.gitignore

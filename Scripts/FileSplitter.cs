@@ -1,7 +1,9 @@
 //Made by David Westberg
 #if UNITY_EDITOR
+using System;
 using System.Collections.Generic;
 using System.IO;
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,6 +12,7 @@ namespace zombFiles
     public class FileSplitter : ScriptableObject
     {
         [SerializeField] private List<SplitFile> splittedFiles = new();
+        [SerializeField] private string gitIgnorePath = null;
 
         [System.Serializable]
         public class SplitFile
@@ -32,28 +35,49 @@ namespace zombFiles
             Debug.Log("Just for spacing I said :D");
         }
 
+        private string RestoreGitIgnore()
+        {
+            //Restore .gitIgnore
+            string ignoreFullPath = TryGetGitIgnoreFullPath(out string splitFolderPath);
+            if (ignoreFullPath == null) return null;
+
+            string ogIgnoreFullPath = GetFullOgGitIgnorePath(ignoreFullPath);
+            if (File.Exists(ogIgnoreFullPath) == true)
+            {
+                File.WriteAllBytes(ignoreFullPath, File.ReadAllBytes(ogIgnoreFullPath));
+                File.Delete(ogIgnoreFullPath);
+            }
+
+            return splitFolderPath;
+        }
+
         private void DoMergeFiles()
         {
+            //Check if we have files to merge
             if (splittedFiles.Count == 0)
             {
                 Debug.Log("Got no files to merge");
                 return;
             }
 
+            //Restore .gitIgnore
+            string splitFolderPath = RestoreGitIgnore();
+            if (splitFolderPath == null) return;
+
+            //Merge the files
             foreach (SplitFile file in splittedFiles)
             {
                 DoMergeFile(file);
             }
 
             Debug.Log("Merged " + splittedFiles.Count + " files");
-            DeleteSplittedFiles();
+            DeleteSplittedFiles(splitFolderPath);
 
-            static void DoMergeFile(SplitFile file)
+            void DoMergeFile(SplitFile file)
             {
                 //Verify all split files exist and get their data
                 byte[] newBytes = new byte[file.sourceByteSize];
                 long newBytesI = 0;
-                string splitFolderPath = Application.dataPath + "/xSplittedFiles_TEMPONLY_hf4n~";
 
                 foreach (string splitPathRel in file.splitFileNames)
                 {
@@ -97,13 +121,11 @@ namespace zombFiles
             TryGetSplitSaveFile().DoSplitFiles();
         }
 
-        private string DeleteSplittedFiles()
+        private void DeleteSplittedFiles(string splitFolderPath)
         {
             //Delete old split files
-            //string SplitPath = Application.dataPath + "/xSplittedFiles_TEMPONLY_hf4n~";
-            string SplitPath = Application.dataPath + "/xSplittedFiles_TEMPONLY_hf4n~";
-            Directory.CreateDirectory(@SplitPath);
-            System.IO.DirectoryInfo dic = new(SplitPath);
+            Directory.CreateDirectory(@splitFolderPath);
+            System.IO.DirectoryInfo dic = new(splitFolderPath);
 
             foreach (FileInfo file in dic.GetFiles())
             {
@@ -112,24 +134,106 @@ namespace zombFiles
 
             splittedFiles.Clear();
             SaveChanges();
+        }
 
-            return SplitPath;
+        private string GetProjectBasePath()
+        {
+            string basePath =  @Application.dataPath;
+            return basePath.Replace("/Assets", string.Empty);
+        }
+
+        /// <summary>
+        /// Returns the full path to the .gitignore file, returns null if no .gitignore file exist
+        /// </summary>
+        private string TryGetGitIgnoreFullPath(out string splitFolderFullPath)
+        {
+            string appPath = GetProjectBasePath();
+            string fullIgnorePath = gitIgnorePath == null ? string.Empty : Path.Combine(appPath, gitIgnorePath);
+            fullIgnorePath = fullIgnorePath.Replace("\\", "/");
+
+            if (gitIgnorePath == null || gitIgnorePath.Length < 10 || File.Exists(fullIgnorePath) == false)
+            {
+                //No valid .gitignore is assigned
+                DirectoryInfo dicToSearch = new(@appPath);
+                FileInfo[] filesInDir = dicToSearch.GetFiles(".gitignore", SearchOption.AllDirectories);
+
+                foreach (FileInfo foundFile in filesInDir)
+                {
+                    string ignFullPath = @foundFile.FullName;
+
+                    gitIgnorePath = Path.GetRelativePath(appPath, ignFullPath);
+                    gitIgnorePath = gitIgnorePath.Replace("\\", "/");
+
+                    if (SplitConfig.requiredGitIgnoreFolderName != null && SplitConfig.requiredGitIgnoreFolderName.Length > 0
+                        && Path.GetFileName(Path.GetDirectoryName(gitIgnorePath)) != SplitConfig.requiredGitIgnoreFolderName) continue;
+
+                    fullIgnorePath = Path.Combine(appPath, gitIgnorePath);
+                    fullIgnorePath = fullIgnorePath.Replace("\\", "/");
+                    SaveChanges();
+                    break;
+                }
+
+                if (gitIgnorePath == null || gitIgnorePath.Length < 10 || File.Exists(fullIgnorePath) == false)
+                {
+                    //No valid .gitignore is found
+                    Debug.LogError("Cant split or merge files because no valid .gitignore file was found in " + appPath + " or any of its sub folders");
+                    splitFolderFullPath = null;
+                    return null;
+                }
+            }
+
+            splitFolderFullPath = fullIgnorePath.Replace("/.gitignore", "/xSplittedFiles_TEMPONLY_hf4n~");
+            return fullIgnorePath;
+        }
+
+        private string GetFullOgGitIgnorePath(string fullGitIgnorePath)
+        {
+            return fullGitIgnorePath.Replace("/.gitignore", "/ogGitIgnore.zombIgnore~");
         }
 
         private void DoSplitFiles()
         {
-            string SplitPath = DeleteSplittedFiles();
+            //Restore .gitIgnore
+            RestoreGitIgnore();
+
+            //Backup the .gitignore file
+            gitIgnorePath = null;//I think its better to always update it
+            string fullIgnorePath = TryGetGitIgnoreFullPath(out string splitFolderPath);
+            if (fullIgnorePath == null) return;
+
+            File.WriteAllBytes(GetFullOgGitIgnorePath(fullIgnorePath), File.ReadAllBytes(fullIgnorePath));
+
+            //Delete previous temp spilt files
+            DeleteSplittedFiles(splitFolderPath);
 
             //Split files
             long minSizeInBytes = SplitConfig.splitFilesLargerThanMB * 1000000;
             int splitFileNumber = 0;
+            string appPath = GetProjectBasePath();
+            List<string> gitIgnorePaths = new();
 
-            foreach (string filePath in GetPathToAllFiles())
+            foreach (string filePath in GetPathToAllFiles(out gitIgnorePaths, splitFolderPath))
             {
                 DoSplitFile(filePath);
             }
 
             SaveChanges();
+            
+            //Did we split anything?
+            if (splittedFiles.Count == 0)
+            {
+                RestoreGitIgnore();
+                Debug.Log("Got no files to split");
+                return;
+            }
+
+            //Add splitted files to .gitignore
+            gitIgnorePaths.Insert(0, "# Auto generated by unityFileSplitter. NOTE, changes made to this .gitignore will be overwritten when you merge or split files");
+
+            string textToAppend = Environment.NewLine + string.Join(Environment.NewLine, gitIgnorePaths);
+            File.AppendAllText(fullIgnorePath, textToAppend);
+
+            //Log result
             Debug.Log("Splitted " + splittedFiles.Count + " files");
 
             void DoSplitFile(string filePath)
@@ -143,7 +247,7 @@ namespace zombFiles
                 while (true)
                 {
                     string splitFileName = splitFileNameBase + splitFileNumber + ".zombSplit";
-                    string splitFilePath = Path.Combine(SplitPath, splitFileName);
+                    string splitFilePath = Path.Combine(splitFolderPath, splitFileName);
 
                     File.WriteAllBytes(splitFilePath, GetSplitBytes());
                     splitFullPaths.Add(splitFileName);
@@ -185,18 +289,25 @@ namespace zombFiles
             AssetDatabase.SaveAssets();
         }
 
-        private static List<string> GetPathToAllFiles()
+        private List<string> GetPathToAllFiles(out List<string> gitIgnoreFilePaths, string splitFolderPath)
         {
+            gitIgnoreFilePaths = new(64);
             List<string> filePaths = new(64);
             long minSizeInBytes = SplitConfig.splitFilesLargerThanMB * 1000000;
 
-            foreach (string filePath in Directory.GetFiles("Assets", "*.*", SearchOption.AllDirectories))
+            string searchFolderPath = Path.GetRelativePath(GetProjectBasePath(), splitFolderPath);
+            searchFolderPath = searchFolderPath.Replace("\\", "/");
+            searchFolderPath = searchFolderPath.Replace("/xSplittedFiles_TEMPONLY_hf4n~", string.Empty);
+
+            foreach (string filePath in Directory.GetFiles(splitFolderPath.Contains("/Assets") == false ?  "Assets" : searchFolderPath, "*.*", SearchOption.AllDirectories))
             {
                 //Ignore file extensions
                 if (SplitConfig.fileExtensionsToIgnore.Contains(Path.GetExtension(filePath)) == true) continue;
 
                 //Ignore too small files
-                var fData = new FileInfo(Path.GetFullPath(filePath));
+                string fullPath = Path.GetFullPath(filePath);
+                var fData = new FileInfo(fullPath);
+
                 if (fData.Length < minSizeInBytes) continue;
                 if (fData.Exists == false) continue;
 
@@ -215,7 +326,9 @@ namespace zombFiles
                 if (ignore == true) continue;
 
                 //Add path to list
-                filePaths.Add(filePath);
+                string theFilePath = filePath.Replace("\\", "/");
+                gitIgnoreFilePaths.Add(theFilePath.Replace(searchFolderPath + "/", string.Empty));
+                filePaths.Add(theFilePath);
             }
 
             return filePaths;
