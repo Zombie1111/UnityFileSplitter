@@ -166,8 +166,8 @@ namespace zombFiles
                     fullIgnorePath = Path.Combine(appPath, gitIgnorePath);
                     fullIgnorePath = fullIgnorePath.Replace("\\", "/");
 
-                    if (SplitConfig.requiredGitIgnoreFolderName != null && SplitConfig.requiredGitIgnoreFolderName.Length > 0
-                        && Path.GetFileName(Path.GetDirectoryName(fullIgnorePath)) != SplitConfig.requiredGitIgnoreFolderName)
+                    if (SplitConfig.requiredGitIgnoreFolderName != null && SplitConfig.requiredGitIgnoreFolderName.Count > 0
+                        && SplitConfig.requiredGitIgnoreFolderName.Contains(Path.GetFileName(Path.GetDirectoryName(fullIgnorePath))) == false)
                     {
                         gitIgnorePath = null;
                         continue;
