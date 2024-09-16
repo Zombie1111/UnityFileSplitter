@@ -30,10 +30,12 @@ A simple&easy to use alternative to git LFS for unity that works with any github
 
 ## Technical Details
 **Splitting Files**
+
 A file is splitted by reading all of its bytes into an array and writing every `SplitConfig.splitFilesLargerThanMB * 1000000` byte to a seperate file in a temporary folder. The path to the files is then saved inside a ScriptableObject.
 Adds the orginal file path to the .gitignore file, a copy of the .gitignore file is created before modifying it. See `DoSplitFiles()` in `Scripts/FileSplitter.cs` for more details
 
 **Merging Files**
+
 Loops through all saved file paths in the ScriptableObject and verifies all splitted files still exists. Reads the splitted files bytes back into a single array, verifies that no bytes are missing and overwrites the orginal file.
 Restores the .gitignore file from the copy created before modifying it and deletes all files in the temporary folder. See `DoMergeFiles()` in `Scripts/FileSplitter.cs` for more details
 
