@@ -307,7 +307,7 @@ namespace zombFiles
             foreach (string filePath in Directory.GetFiles(splitFolderPath.Contains("/Assets") == false ?  "Assets" : searchFolderPath, "*.*", SearchOption.AllDirectories))
             {
                 //Ignore file extensions
-                if (SplitConfig.fileExtensionsToIgnore.Contains(Path.GetExtension(filePath)) == true) continue;
+                if (SplitConfig.fileExtensionsToExclude.Contains(Path.GetExtension(filePath)) == true) continue;
 
                 //Ignore too small files
                 string fullPath = Path.GetFullPath(filePath);
@@ -319,7 +319,7 @@ namespace zombFiles
                 //Ignore dictoraries
                 bool ignore = false;
 
-                foreach (string dic in SplitConfig.dictorariesToIgnore)
+                foreach (string dic in SplitConfig.dictorariesToExclude)
                 {
                     if (filePath.Contains(dic) == true)
                     {
