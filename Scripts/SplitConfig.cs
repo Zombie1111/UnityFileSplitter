@@ -14,6 +14,8 @@ namespace zombFiles
         public const int splitFilesLargerThanMB = 99;//If a file is larger that this it gets splitted into files that are smaller than this
 
         public static readonly HashSet<string> requiredGitIgnoreFolderName = new() {  };//The .gitIgnore file to use must be in a folder with any of these names
+
+        public const bool autoMergeAndSplit = true;//If true, files will be merged on editor start and splitted on editor close automatically
     }
 }
 #endif

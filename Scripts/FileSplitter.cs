@@ -8,8 +8,45 @@ using UnityEngine;
 
 namespace zombFiles
 {
+    class MyAllPostprocessor : AssetPostprocessor
+    {
+        static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths, bool didDomainReload)
+        {
+            //Setup auto split and merge
+            var fSplitter = FileSplitter.TryGetSplitSaveFile();
+            if (fSplitter == null)
+            {
+                Debug.LogError("Auto split and merge failed, no FillerSplitter found. Was TryGetSplitSaveFile() called before importing?");
+                return;
+            }
+
+            fSplitter.SetupEditor();
+        }
+    }
+
     public class FileSplitter : ScriptableObject
     {
+        public void SetupEditor()
+        {
+#pragma warning disable CS0162 // Unreachable code detected
+            if (SplitConfig.autoMergeAndSplit == false) return;
+
+            EditorApplication.quitting -= OnEditorClose;
+            EditorApplication.quitting += OnEditorClose;
+            OnEditorStart();
+#pragma warning restore CS0162 // Unreachable code detected
+        }
+
+        public static void OnEditorStart()
+        {
+            TryGetSplitSaveFile().DoMergeFiles(false);
+        }
+
+        public static void OnEditorClose()
+        {
+            SplitFiles();
+        }
+
         [SerializeField] private List<SplitFile> splittedFiles = new();
         [SerializeField] private string gitIgnorePath = null;
 
@@ -24,7 +61,7 @@ namespace zombFiles
         [MenuItem("Tools/File Splitting/Merge Files")]
         private static void MergeFiles()
         {
-            TryGetSplitSaveFile().DoMergeFiles();
+            TryGetSplitSaveFile().DoMergeFiles(true);//Also change in OnEditorStart()
         }
 
         [MenuItem("Tools/File Splitting/MX_JustToAddSpacing")]
@@ -50,12 +87,12 @@ namespace zombFiles
             return splitFolderPath;
         }
 
-        private void DoMergeFiles()
+        private void DoMergeFiles(bool logIfNoFiles = true)
         {
             //Check if we have files to merge
             if (splittedFiles.Count == 0)
             {
-                Debug.Log("Got no files to merge");
+                if (logIfNoFiles == true) Debug.Log("Got no files to merge");
                 return;
             }
 
@@ -342,7 +379,7 @@ namespace zombFiles
         /// <summary>
         /// Returns the Splitter asset, returns null if it has been deleted
         /// </summary>
-        private static FileSplitter TryGetSplitSaveFile()
+        public static FileSplitter TryGetSplitSaveFile()
         {
             FileSplitter splitter = Resources.Load<FileSplitter>("zombFileSplitterData");
             if (splitter == null)

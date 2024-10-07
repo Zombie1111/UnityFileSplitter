@@ -24,8 +24,7 @@ A simple&easy to use alternative to git LFS for unity that works with any github
 <ol>
     <li>Download and copy the Resources and Scripts folders into an empty folder inside your Assets folder</li>
     <li>Open the <code>Scripts/SplitConfig.cs</code> file and configure it, its recommended to add the folder name your .gitignore file is inside to the requiredGitIgnoreFolderName hashset</li>
-    <li>Press the <code>Tools->File Splitting->Split Files</code> button everytime before you commit anything to github</li>
-    <li>Press the <code>Tools->File Splitting->Merge Files</code> button everytime after you pull anything from github</li>
+    <li>Make sure Unity is closed before you commit anything to github</li>
 </ol>
 
 ## Technical Details
