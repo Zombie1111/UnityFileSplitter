@@ -26,10 +26,13 @@ namespace zombFiles
 
     public class FileSplitter : ScriptableObject
     {
+        private bool hasSetupEditor = false;
+
         public void SetupEditor()
         {
 #pragma warning disable CS0162 // Unreachable code detected
-            if (SplitConfig.autoMergeAndSplit == false) return;
+            if (hasSetupEditor == true || SplitConfig.autoMergeAndSplit == false) return;
+            hasSetupEditor = true;
 
             EditorApplication.quitting -= OnEditorClose;
             EditorApplication.quitting += OnEditorClose;
@@ -174,7 +177,7 @@ namespace zombFiles
 
         private string GetProjectBasePath()
         {
-            string basePath =  @Application.dataPath;
+            string basePath = @Application.dataPath;
             return basePath.Replace("/Assets", string.Empty);
         }
 
@@ -260,7 +263,7 @@ namespace zombFiles
             }
 
             SaveChanges();
-            
+
             //Did we split anything?
             if (splittedFiles.Count == 0)
             {
@@ -341,7 +344,7 @@ namespace zombFiles
             searchFolderPath = searchFolderPath.Replace("\\", "/");
             searchFolderPath = searchFolderPath.Replace("/xSplittedFiles_TEMPONLY_hf4n~", string.Empty);
 
-            foreach (string filePath in Directory.GetFiles(splitFolderPath.Contains("/Assets") == false ?  "Assets" : searchFolderPath, "*.*", SearchOption.AllDirectories))
+            foreach (string filePath in Directory.GetFiles(splitFolderPath.Contains("/Assets") == false ? "Assets" : searchFolderPath, "*.*", SearchOption.AllDirectories))
             {
                 //Ignore file extensions
                 if (SplitConfig.fileExtensionsToExclude.Contains(Path.GetExtension(filePath)) == true) continue;
