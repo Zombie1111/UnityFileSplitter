@@ -1,5 +1,9 @@
 <h1 align="center">UnityFileSplitter by David Westberg</h1>
 
+## LEGACY
+**A more general and optimized version can be found here:**
+https://github.com/Zombie1111/FileSplitter
+
 ## Overview
 A simple&easy to use alternative to git LFS for unity that works with any github repo. Splits large files into multiple smaller files, automatically adds the large files to your .gitignore and merges the splitted files back into their orginal large file.
 
