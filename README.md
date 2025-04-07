@@ -1,4 +1,4 @@
-<h1 align="center">UnityFileSplitter by David Westberg</h1>
+<h1>UnityFileSplitter</h1>
 
 ## LEGACY
 **A more general and optimized version can be found here:**
